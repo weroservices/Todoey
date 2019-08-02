@@ -7,14 +7,13 @@
 //
 
 import UIKit
-import CoreData
+import RealmSwift
 
 class CategoryTableViewController: UITableViewController {
     
-    var categoryArray = [Category]()
-
-    // Konstante definieren, die den Container Kontext von AppDelegate übernimmt
-    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+    let realm = try! Realm()
+    
+    var categories : Results<Category>?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -26,37 +25,34 @@ class CategoryTableViewController: UITableViewController {
     //MARK: - TableView Datasource Methods
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return categoryArray.count
+        return categories?.count ?? 1
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "CategoryCell", for: indexPath)
         
-        let name = categoryArray[indexPath.row].name
-        cell.textLabel?.text = name
+        cell.textLabel?.text = categories?[indexPath.row].name ?? "No Categories Added yet"
         
         return cell
     }
     
     //MARK: - Data Manipulation Methods
     
-    func loadCategories(with request: NSFetchRequest<Category> = Category.fetchRequest()) {
-            
-        do {
-            categoryArray = try context.fetch(request)
-        } catch {
-            print("Error fetching categories from context: \(error)")
-        }
+    func loadCategories() {
         
+        categories = realm.objects(Category.self)
+            
         tableView.reloadData()
     }
     
-    func saveData() {
+    func save(category : Category) {
         
         do {
-            try context.save()
+            try realm.write {
+                realm.add(category)
+            }
         } catch {
-            print("Error saving context: \(error)")
+            print("Error saving category: \(error)")
         }
         
         //aktualisiert die Anzeige der Daten im Tableview
@@ -79,7 +75,7 @@ class CategoryTableViewController: UITableViewController {
         let destinationVC = segue.destination as! TodoListViewController
         
         if let indexPath = tableView.indexPathForSelectedRow {
-            destinationVC.selectedCategory = categoryArray[indexPath.row]
+            destinationVC.selectedCategory = categories?[indexPath.row]
         }
     }
 
@@ -92,12 +88,10 @@ class CategoryTableViewController: UITableViewController {
         let action = UIAlertAction(title: "Add Category", style: .default) { (action) in
             //was soll passieren, wenn der AddCategory Button in UIAlert gedrückt wird
             
-            let newCategory = Category(context: self.context)
+            let newCategory = Category()
             newCategory.name = textField.text!
             
-            self.categoryArray.append(newCategory)
-            
-            self.saveData()
+            self.save(category: newCategory)
             
         }
         
